@@ -1,6 +1,6 @@
 {
   "name": "pixl-ipc",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "IPC Server using Unix Sockets and the pixl-server framework",
 	"author": "Robert Dominy <rdominy+github@gmail.com>",
   "homepage": "https://github.com/rdominy/pixl-ipc",
@@ -8,7 +8,7 @@
   "main": "ipc_server.js",
   "repository": {
     "type": "git",
-    "url": "http://source.eng.admission.net/git/?p=dev/node_modules.git"
+    "url": "https://github.com/rdominy/pixl-ipc"
   },
   "scripts": {
     "test": "mocha test.js"
