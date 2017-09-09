@@ -28,7 +28,7 @@ class IPCClient extends EventEmitter {
 		this.requestTimeout = options.requestTimeout ? options.requestTimeout : 10*1000 ;
 		this.serialCounter = 0;
 		this.expirationFrequency = options.expirationFrequency ? options.expirationFrequency : 5*1000;
-		this.requestCount = 0;
+		this.requestCount = 0; 
 	}
 
 	expireRequests() {
@@ -142,7 +142,8 @@ class IPCClient extends EventEmitter {
 			var msg = {
 				ipcReqID: this.nextID(),
 				uri: uri,
-				data: data			
+				data: data,
+				pid: process.pid
 			};
 
 			this.requests[msg.ipcReqID] = {

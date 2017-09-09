@@ -122,9 +122,11 @@ describe('PixlIPC', function() {
 			});
 		})
 		it('registers a handler', function(done) {
-			server.IPCServer.addURIHandler(/^\/myapi\/test/, "IPCServer", function(data, callback) {
-				assert(data);
-				assert.equal(data.message, "foo");
+			server.IPCServer.addURIHandler(/^\/myapi\/test/, "IPCServer", function(request, callback) {
+				assert(request);
+				assert(request.data);
+				assert.equal(request.data.message, "foo");
+				assert.equal(request.pid, process.pid);
 				handlerCallCount++;
 				callback({"hello":"thanks"});
 			});
@@ -172,7 +174,7 @@ describe('PixlIPC', function() {
 				done();
 			});				
 		})
-		it('sends an delay message to server', function(done) {
+		it('sends a delay message to server', function(done) {
 			testClient.send('/ipcserver/test/delay',  {delay:10}, function(err, result) {
 				assert(!err);
 				assert.equal(clientStubby.errorCount, 0);

@@ -24,9 +24,11 @@ class PixlIPCClient {
 	protected $streamTimeout_s = 0;
 	protected $streamTimeout_uS = 500000; // 500ms
 	protected $serialCounter = 0;
+	protected $pid = 0;
 
 	public function __construct($socketPath, $options=null) {
 		$this->socketPath = $socketPath;
+		$this->pid = getmypid();
 		
 		// Pass incoming times in milliseconds for consistency
 		if ($options && isset($options['connectTimeout'])) {
@@ -92,7 +94,8 @@ class PixlIPCClient {
 			$msg = array(
 				'uri' => $uri,
 				'ipcReqID' => $ipcReqID,
-				'data' => $request
+				'data' => $request,
+				'pid' => $this->pid
 			);
 			
 			$requestStr = json_encode($msg);

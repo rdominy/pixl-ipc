@@ -34,7 +34,7 @@ var server = new PixlServer({
 server.startup( function() {
 		console.log("Main startup");
 		
-		server.IPCServer.addURIHandler(/^\/myapi\/test/, "IPCServer", function(data, callback) {
+		server.IPCServer.addURIHandler(/^\/myapi\/test/, "IPCServer", function(request, callback) {
 			callback({"hello":"thanks for your message"});
 		});
 } );
@@ -72,7 +72,21 @@ uriPattern|string or regex|Identifies the type of messages the handler should re
 name|string|The name to associate with the handler (for logging)
 callback|function|The method to call when a message is received
 
-This method registers callback handler to process incoming requests matching the specified URI pattern.
+This method registers callback handler to process incoming requests matching the specified URI pattern.  When the handler is called it is passed the request object and response callback.
+
+The *request* contains:
+Name|Type|Description
+----|----|-----------
+uri|string|URI passed from client
+data|json object|The data from the client
+pid|integer|The process ID of the client (Not yet implemented)
+
+~~~~javascript
+myHandler(request, callback) {
+	console.dir(request);
+	callback({thanks: "a lot"});
+}
+~~~~
 
 ### getStats()
 Returns various statistics about the IPC server.

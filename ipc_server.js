@@ -3,6 +3,9 @@
 // Copyright (c) 2017 Robert Dominy
 // Released under the MIT License
 
+
+// TODO: add user-agent in clients
+
 const net = require('net'),
 	fs = require('fs'),
 	async = require('async'),
@@ -96,7 +99,7 @@ class IPCServer extends Component {
 			
 
 			this.logDebug(7, "Request " + request.uri + " handled by:" + handler.name);
-			handler.callback(request.data, function(data) {
+			handler.callback(request, function(data) {
 				// Preserve ID in response so the client can match to request
 				var response = {
 					ipcReqID: request.ipcReqID ? request.ipcReqID : null,
@@ -109,15 +112,15 @@ class IPCServer extends Component {
 
 	}
 
-	echoHandler(data, callback) {
-		callback(data);
+	echoHandler(request, callback) {
+		callback(request.data);
 	}
 
-	delayHandler(data, callback) {
-		if (data.delay) {
+	delayHandler(request, callback) {
+		if (request.data.delay) {
 			setTimeout(function() {
-				callback({delay: data.delay});
-			}, data.delay);
+				callback({delay: request.data.delay});
+			}, request.data.delay);
 		}
 		else {
 			callback({delay: 0});
