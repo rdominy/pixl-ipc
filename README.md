@@ -63,6 +63,8 @@ Name|Type|Description
 ----|----|-----------
 socket_path|string|Path where the socket file will be created -- must be same in client
 exit_timeout|integer|When shutting down and waiting for client connections to close, this will force an exit when the timeout is exceeded (default 2000ms)
+socket_chmod|string|The CHMOD(2) permission of the socket file (default: '777')
+log_stats_interval|string|The frequency to log various stats using pixl-server event intervals. (default: 'minute')
 
 ## Methods
 ### addURIHandler(uriPattern, name, callback)
@@ -116,6 +118,7 @@ options|json object|Override settings such as request timeout
 ~~~~javascript
 // options with current defaults, times are in milliseconds
 {
+	userAgent: "Node/IPCClient" + process.cwd(), // A string that identifies your application
 	requestTimeout : 10*1000, // How long to wait before timing out the request
 	expirationFrequency : 5*1000 // How frequently to check outstanding messages to see if they are stale
 }
@@ -165,6 +168,7 @@ options|hash array|Override settings such as request timeout
 ~~~~javascript
 // options with current defaults, times are in milliseconds
 array(
+	'userAgent' => "PHP/PixlIPCClient" . getcwd(), // A string that identifies your application
 	'requestTimeout' => 500, // How long to wait before timing out the request
 	'connectTimeout' => 500 // How long to wait before timing out the connection
 )
@@ -184,14 +188,14 @@ message|hash array|The data to send to the IPC server
 Sends a JSON request to the IPC Server and returns the response. Throws exception if there was an error.
 
 # Performance Notes
-In testing on a local ancient laptop, performance is sub-millisecond for message sizes under about 20K.
+In testing on a local ancient laptop (2011 2.4 GHz Intel Core i7), performance is sub-millisecond for message sizes under about 20K and about twice as fast on a reasonable AWS EC2 Instance (m4.xlarge).
 
-Msg Size|Time (ms)
---------|---------
-1K | 0.13
-5K | 0.19
-10K | 0.36
-20K | 0.64
-100K | 3.35
+Msg Size|laptop (ms)|EC2 (ms)
+--------|-----------|-----------------
+1K | 0.13 | 0.09
+5K | 0.19 | 0.094
+10K | 0.36 | 0.18
+20K | 0.64 | 0.316
+100K | 3.35 | 1.374
 
  

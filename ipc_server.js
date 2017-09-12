@@ -17,13 +17,34 @@ class IPCServer extends Component {
 		super();
 		this.__name = "IPCServer";
 		this.defaultConfig = {
-			exit_timeout: 2000
+			exit_timeout: 2000,
+			log_stats_interval: 'minute',
+			socket_chmod: '777'
 		};
 		this.uriHandlers = [];
 		this.unixServer = null;
 		this.connections = new Set();
 
+ 		this.intervalStats = this.newIntervalStats();
+		this.lastCycleStats = this.newIntervalStats();  // Keep a full cycle of stats that can be fetched
+		this.statsIntervalStart = Date.now();
+		
 		this.setDefaultHandler(this.noHandlerFound.bind(this));
+	}
+	
+	newIntervalStats() {
+		return {
+			requests: 0,
+			clientOpen: 0,
+			clientClose: 0,
+			duration: 0
+		};
+	}
+	
+	cycleIntervalStats(duration) {
+		this.lastCycleStats = this.intervalStats;
+		this.lastCycleStats.duration = duration;
+		this.intervalStats = this.newIntervalStats();
 	}
 
 	cleanup() {
@@ -47,9 +68,11 @@ class IPCServer extends Component {
 			
 			self.logDebug(8,'client connected');
 			self.connections.add(connection);
+			self.intervalStats.clientOpen++;
 
 			connection.on('end', function() {
 				self.connections.delete(this);
+				self.intervalStats.clientClose++;
 				self.logDebug(8,'client disconnected');
 			});
 
@@ -62,6 +85,7 @@ class IPCServer extends Component {
 			stream.on('json', function(data) {
 				// received data from child
 				self.logDebug(9,"Data from client", data);
+				self.intervalStats.requests++;
 				self.handleIPCRequest(data, stream);
 			} );
 
@@ -74,7 +98,13 @@ class IPCServer extends Component {
 			self.logError('ipc_server_err', JSON.stringify(err));
 		});
 
+		
 		this.unixServer.listen(sock_path, function() {
+			var chmod = self.config.get("socket_chmod");
+			if (chmod && (chmod!='')) {
+				fs.chmodSync(sock_path, chmod);
+			}
+			
 			self.logDebug(5,"IPCServer Listening on:", sock_path);
 		});
 	}
@@ -112,6 +142,13 @@ class IPCServer extends Component {
 
 	}
 
+	logIntervalStats() {
+		var now = Date.now();
+		this.cycleIntervalStats(now - this.statsIntervalStart);
+		this.statsIntervalStart = now;
+		this.logDebug(5, "IPCServer Stats", this.getStats());
+	}
+	
 	echoHandler(request, callback) {
 		callback(request.data);
 	}
@@ -132,12 +169,17 @@ class IPCServer extends Component {
 	//
 
 	startup(callback) {
-		this.logDebug(5,"IPC Server startup");
+		this.logDebug(5, "IPC Server startup");
 		this.cleanup();
 		this.createIPCServer();
 
-		this.addURIHandler(/^\/ipcserver\/test\/echo/, "IPCServer", this.echoHandler.bind(this))
-		this.addURIHandler(/^\/ipcserver\/test\/delay/, "IPCServer", this.delayHandler.bind(this))
+		this.addURIHandler(/^\/ipcserver\/test\/echo/, "IPCServer", this.echoHandler.bind(this));
+		this.addURIHandler(/^\/ipcserver\/test\/delay/, "IPCServer", this.delayHandler.bind(this));
+		
+		if (this.config.get("log_stats_interval")) {
+			this.server.on(this.config.get("log_stats_interval"), this.logIntervalStats.bind(this));
+		}
+		
 		callback();
 	}
 
@@ -191,10 +233,12 @@ class IPCServer extends Component {
 	}
 	
 	getStats() {
-		return {
+		var statsmerge = {
 			connections: this.connections.size,
 			handlers: this.uriHandlers.length
 		};
+		
+		return Object.assign(statsmerge, this.lastCycleStats);
 	}
 }
 
