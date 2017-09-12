@@ -87,6 +87,26 @@ $test->newTest("send an unknown message to server", function() use ($test) {
 	$test->assert($result['message']);
 });
 
+$test->newTest("send a message with default userAgent", function() use ($test) {
+	$ipc = new PixlIPCClient(SOCKET_PATH);
+	$test->assert($ipc, 'No object returned from PixlIPCClient');
+	$ipc->connect();
+	$msg = array('message' => 'foo', 'uaTest' => '^PHP/PixlIPCClient.+');
+	$result = $ipc->send('/myapi/test', $msg);
+	$test->assert($result, 'No message back from server');
+	$test->assertEqual($result['hello'], 'thanks');
+});
+
+$test->newTest("send a message with default userAgent", function() use ($test) {
+	$ipc = new PixlIPCClient(SOCKET_PATH, array('userAgent'=>'phpTestAgent'));
+	$test->assert($ipc, 'No object returned from PixlIPCClient');
+	$ipc->connect();
+	$msg = array('message' => 'foo', 'uaTest' => '^phpTestAgent$');
+	$result = $ipc->send('/myapi/test', $msg);
+	$test->assert($result, 'No message back from server');
+	$test->assertEqual($result['hello'], 'thanks');
+});
+
 $test->run();
 
 ?>

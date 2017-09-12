@@ -25,6 +25,7 @@ class PixlIPCClient {
 	protected $streamTimeout_uS = 500000; // 500ms
 	protected $serialCounter = 0;
 	protected $pid = 0;
+	protected $userAgent = '';
 
 	public function __construct($socketPath, $options=null) {
 		$this->socketPath = $socketPath;
@@ -40,6 +41,8 @@ class PixlIPCClient {
 			$this->streamTimeout_s = floor($timeout/1000.0);
 			$this->streamTimeout_uS = floor(($timeout-$this->streamTimeout_s*1000)*1000);
 		}
+		
+		$this->userAgent = isset($options['userAgent']) ? $options['userAgent'] : "PHP/PixlIPCClient" . getcwd() ;
 	}
 	
 	public function __destruct() {
@@ -95,7 +98,8 @@ class PixlIPCClient {
 				'uri' => $uri,
 				'ipcReqID' => $ipcReqID,
 				'data' => $request,
-				'pid' => $this->pid
+				'pid' => $this->pid,
+				'userAgent' => $this->userAgent
 			);
 			
 			$requestStr = json_encode($msg);

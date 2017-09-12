@@ -100,6 +100,8 @@ describe('PixlIPC', function() {
 		})
 	})
 	
+	
+	
 	describe('IPC Server with node client', function() {
 		var server = null;
 		var handlerCallCount = 0;
@@ -127,6 +129,9 @@ describe('PixlIPC', function() {
 				assert(request.data);
 				assert.equal(request.data.message, "foo");
 				assert.equal(request.pid, process.pid);
+				assert(request.data.uaTest);
+				var userAgentRegex = new RegExp(request.data.uaTest);
+				assert(userAgentRegex.test(request.userAgent), "unexpected userAgent:" + request.userAgent);
 				handlerCallCount++;
 				callback({"hello":"thanks"});
 			});
@@ -143,7 +148,7 @@ describe('PixlIPC', function() {
 			});
 		})
 		it('sends message to test handler', function(done) {
-			testClient.send('/myapi/test', {message:"foo"}, function(err, result) {
+			testClient.send('/myapi/test', {message:"foo", uaTest:"^Node/IPCClient.+"}, function(err, result) {
 				assert(!err);
 				assert.equal(clientStubby.errorCount, 0);
 				assert(result);
@@ -203,7 +208,33 @@ describe('PixlIPC', function() {
 				assert.equal(result.code, 'no_handler_found');
 				assert(result.message);
 				done();
-			});				
+			});
+		})
+		it('passes custom userAgent', function(done) {
+			clientStubby.reset();
+			var uaClient = new IPCClient(SOCKET_PATH, clientStubby, {userAgent:"shortClient"});
+			uaClient.connect(function(err) {
+				uaClient.send('/myapi/test', {message:"foo", uaTest:"^shortClient$"}, function(err, result) {
+					assert(!err);
+					assert.equal(clientStubby.errorCount, 0);
+					assert(result);
+					assert(result.hello);
+					assert.equal(result.hello, "thanks");
+					assert.equal(handlerCallCount, 2);
+					done();
+				});
+			});
+		})			
+		it('cycle stats and fetch them', function() {
+			server.IPCServer.logIntervalStats();
+			var stats = server.IPCServer.getStats();
+			assert(stats);
+			assert.equal(stats.connections, 3);
+			assert.equal(stats.handlers, 3);
+			assert(stats.duration > 0);
+			assert.equal(stats.clientOpen, 3);
+			assert.equal(stats.clientClose, 0);
+			assert(stats.requests > 5);
 		})
 	})
 	
@@ -232,6 +263,19 @@ describe('PixlIPC', function() {
 				done();
 			});
 		})
+		it('server registers a handler to check request params', function(done) {
+			server.IPCServer.addURIHandler(/^\/myapi\/test/, "IPCServer", function(request, callback) {
+				assert(request);
+				assert(request.data);
+				assert.equal(request.data.message, "foo");
+				assert(request.pid);
+				assert(request.data.uaTest);
+				var userAgentRegex = new RegExp(request.data.uaTest);
+				assert(userAgentRegex.test(request.userAgent), "unexpected userAgent:" + request.userAgent);
+				callback({"hello":"thanks"});
+			});
+			done();
+		})
 		it('runs the PHP test suite without error', function(done) {
 			this.timeout(10000);
 			child = child_process.spawn(
@@ -241,7 +285,6 @@ describe('PixlIPC', function() {
 
 			assert(child);
 
-				
 			child.stdout.on('data', function (data) {
 				gFinished = true;
 				assert(data, 'Empty response from PHP child');
