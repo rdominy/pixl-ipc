@@ -3,9 +3,6 @@
 // Copyright (c) 2017 Robert Dominy
 // Released under the MIT License
 
-
-// TODO: add user-agent in clients
-
 const net = require('net'),
 	fs = require('fs'),
 	async = require('async'),
@@ -37,12 +34,13 @@ class IPCServer extends Component {
 			requests: 0,
 			clientOpen: 0,
 			clientClose: 0,
+			maxConnections: 0,
 			duration: 0
 		};
 	}
 	
 	cycleIntervalStats(duration) {
-		this.lastCycleStats = this.intervalStats;
+		this.lastCycleStats = Object.assign({}, this.intervalStats);
 		this.lastCycleStats.duration = duration;
 		this.intervalStats = this.newIntervalStats();
 	}
@@ -69,7 +67,8 @@ class IPCServer extends Component {
 			self.logDebug(8,'client connected');
 			self.connections.add(connection);
 			self.intervalStats.clientOpen++;
-
+			self.intervalStats.maxConnections = Math.max(self.intervalStats.maxConnections, self.connections.size);
+			
 			connection.on('end', function() {
 				self.connections.delete(this);
 				self.intervalStats.clientClose++;
@@ -127,7 +126,6 @@ class IPCServer extends Component {
 				handler = this.defaultHandler;
 			}
 			
-
 			this.logDebug(7, "Request " + request.uri + " handled by:" + handler.name);
 			handler.callback(request, function(data) {
 				// Preserve ID in response so the client can match to request
