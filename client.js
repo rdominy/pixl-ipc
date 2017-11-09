@@ -29,6 +29,7 @@ class IPCClient extends EventEmitter {
 		this.userAgent = options.userAgent ? options.userAgent : "Node/IPCClient" + process.cwd();
 		this.serialCounter = 0;
 		this.expirationFrequency = options.expirationFrequency ? options.expirationFrequency : 5*1000;
+		this.autoReconnect = (typeof options.autoReconnect == 'undefined') ? 1000 : options.autoReconnect;
 		this.requestCount = 0; 
 	}
 
@@ -40,7 +41,7 @@ class IPCClient extends EventEmitter {
 					var request = this.requests[id];
 					this.logError('request_timeout', "IPCClient request expired", request);
 					request.callback('request_timeout');
-					this.delete(id);
+					this.deleteRequest(id);
 				}
 			}
 		}
@@ -86,6 +87,13 @@ class IPCClient extends EventEmitter {
 		delete this.requests[id];
 		this.requestCount--;
 	}
+	
+	reconnect(err) {
+		if (err && this.autoReconnect) {
+			this.logDebug(5, "Auto reconnect in " + this.autoReconnect + " ms");
+			setTimeout(this.connect.bind(this, this.reconnect.bind(this)), this.autoReconnect);
+		}
+	}
 
 	//
 	// Public Methods
@@ -126,6 +134,11 @@ class IPCClient extends EventEmitter {
 				callbackHandled = true;
 				callback('ipc_socket_err');
 			}
+			else {
+				// The error occurred sometime after the initial connection, attempt to reconnect
+				self.stream = null;
+				self.reconnect(err);
+			}
 		});
 
 		client.on('end', function() {
@@ -137,6 +150,7 @@ class IPCClient extends EventEmitter {
 		});
 
 	}
+
 
 	send(uri, data, callback=null) {
 		if (this.stream) {

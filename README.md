@@ -1,6 +1,4 @@
-**STATUS:** Beta
-
-This module provides interprocess communication (IPC) using unix domain sockets to provide fast local communication between processes that avoid touching the network stack.  It is built as a component of [pixl-server](http://www.npmjs.com/package/pixl-server), a lightweight framework for building node.js daemon applications.
+The pixl-ipc module provides interprocess communication (IPC) using unix domain sockets to provide fast local communication between processes that avoids touching the network stack.  It is built as a component of [pixl-server](http://www.npmjs.com/package/pixl-server), a lightweight framework for building node.js daemon applications.
 
 * JSON messages over UNIX domain sockets
 * Protocol is language agnostic
@@ -120,7 +118,8 @@ options|json object|Override settings such as request timeout
 {
 	userAgent: "Node/IPCClient" + process.cwd(), // A string that identifies your application
 	requestTimeout : 10*1000, // How long to wait before timing out the request
-	expirationFrequency : 5*1000 // How frequently to check outstanding messages to see if they are stale
+	expirationFrequency : 5*1000, // How frequently to check outstanding messages to see if they are stale
+	autoReconnect: 1000 // Reconnect in N ms if the connection is broken or set to 0 to prevent automatic reconnect
 }
 
 ~~~~
