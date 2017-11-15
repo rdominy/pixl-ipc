@@ -1,7 +1,7 @@
 {
   "name": "pixl-ipc",
-  "version": "1.0.0",
-  "description": "IPC Server using Unix Sockets and the pixl-server framework",
+  "version": "1.0.1",
+  "description": "IPC Server using Unix Domain Sockets and the pixl-server framework",
 	"author": "Robert Dominy <rdominy+github@gmail.com>",
   "homepage": "https://github.com/rdominy/pixl-ipc",
   "license": "MIT",
@@ -16,6 +16,15 @@
 	"bugs": {
 		"url": "https://github.com/rdominy/pixl-ipc/issues"
 	},
+	"keywords": [
+		"socket",
+		"unix",
+		"domain",
+		"ipc",
+		"json",
+		"interprocess",
+		"communication"
+	],
   "dependencies": {
     "async": "^2.5.0",
     "pixl-args": "^1.0.3",

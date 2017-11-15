@@ -236,6 +236,46 @@ describe('PixlIPC', function() {
 			assert.equal(stats.clientClose, 0);
 			assert(stats.requests > 5);
 		})
+		describe('Client with codeToErr option set', function() {
+			var client = null;
+			before('client connects', function(done) {
+				clientStubby.reset();
+				client = new IPCClient(SOCKET_PATH, clientStubby, {codeToErr: true});
+				client.connect(function(err) {
+					assert(!err);
+					assert.equal(clientStubby.errorCount, 0);
+					done();
+				});
+			})
+			it('sends an echo message to server', function(done) {
+				client.send('/ipcserver/test/echo', {message:"foo",echo:true,bar:9}, function(err, result) {
+					assert(!err);
+					assert.equal(clientStubby.errorCount, 0);
+					assert(result);
+					assert(result.message);
+					assert.equal(result.message, "foo");
+					assert.equal(result.echo, true);
+					assert.equal(result.bar, 9);
+					done();
+				});				
+			})
+			it('sends an unknown message to server', function(done) {
+				client.send('/ipcserver/no_such_thing',  {foo:10}, function(err, result) {
+					assert(err);
+					assert.equal(err.code, 'no_handler_found');
+					assert(err.message);
+					done();
+				});
+			})
+			it('sends an echo message with non-zero result code', function(done) {
+				client.send('/ipcserver/test/echo', {code: "testErr", message:"foo",echo:true,bar:9}, function(err, result) {
+					assert(err);
+					assert.equal(err.code, "testErr");
+					assert.equal(err.message, "foo");
+					done();
+				});				
+			})
+		})
 	})
 	
 	describe('IPC Server with php client', function() {
