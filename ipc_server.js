@@ -116,7 +116,8 @@ class IPCServer extends Component {
 	handleIPCRequest(request, stream) {
 		if (!request.uri) {
 			this.logError('no_uri', 'Request missing uri', request);
-			stream.write({code: 'no_uri', message:'Missing required uri parameter from request'});
+			var ipcReqID = request.ipcReqID ? request.ipcReqID : null;
+			stream.write({ipcReqID: ipcReqID, code: 'no_uri', message:'Missing required uri parameter from request'});
 		}
 		else {
 			var handler = this.uriHandlers.find(function(item) {
