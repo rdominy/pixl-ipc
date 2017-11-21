@@ -4,14 +4,6 @@ require_once  __DIR__ . "/lib/Test.class.php";
 
 const SOCKET_PATH = "/var/tmp/node_ipc_unittest_server.sock";
 
-function createSizedMessage($size) {
-	$message = array();
-	for ($i=0;$i<$size;$i++) {
-		$message["key_" . $i] = str_pad("GiveMe",  1024, "Dataz");
-	}
-	return $message;
-}
-
 $test = new Test();
 
 $test->newTest("throw exception on bad socket path", function() use ($test) {
@@ -50,7 +42,7 @@ $test->newTest("send a 1MB echo message", function() use ($test) {
 	$ipc = new PixlIPCClient(SOCKET_PATH);
 	$test->assert($ipc, 'No object returned from PixlIPCClient');
 	$ipc->connect();
-	$msg = createSizedMessage(1024);
+	$msg = Test::createSizedMessage(1024);
 	$result = $ipc->send('/ipcserver/test/echo', $msg);
 	$test->assert($result, 'No message back from server');
 	$resultAsStr = json_encode($result);

@@ -4,6 +4,7 @@ const assert = require("assert"),
 	IPCClient = require('../client'),
 	async = require('async'),
 	Stubby = require('./lib/stubby.js'),
+	createSizedMessage = require('./lib/sized-message.js'),
 	PixlServer = require('pixl-server');
 
 const SOCKET_PATH = "/var/tmp/node_ipc_unittest_server.sock";
@@ -45,32 +46,7 @@ function createServer(config, callback) {
 	});
 }
 
-// https://github.com/uxitten/polyfill/blob/master/string.polyfill.js
-// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/repeat
-if (!String.prototype.padEnd) {
-	String.prototype.padEnd = function padEnd(targetLength,padString) {
-			targetLength = targetLength>>0; //floor if number or convert non-number to 0;
-			padString = String(padString || ' ');
-			if (this.length > targetLength) {
-					return String(this);
-			}
-			else {
-					targetLength = targetLength-this.length;
-					if (targetLength > padString.length) {
-							padString += padString.repeat(targetLength/padString.length); //append to original to ensure we are longer than needed
-					}
-					return String(this) + padString.slice(0,targetLength);
-			}
-	};
-}
 
-function createSizedMessage(size) {
-	var message = {};
-	for (var i=0;i<size;i++) {
-		message["key_"+i] = "GiveMe".padEnd(1024,"Dataz");
-	}
-	return message;
-}
 
 var clientStubby = new Stubby();
 

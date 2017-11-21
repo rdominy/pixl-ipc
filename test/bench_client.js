@@ -1,5 +1,6 @@
-const IPCClient = require('../client');
-const async = require('async');
+const IPCClient = require('../client'),
+	async = require('async'),
+	createSizedMessage = require('./lib/sized-message.js');
 
 var config = require('./bench_config.json');
 var results = {
@@ -7,16 +8,11 @@ var results = {
 	iterations: config.iterations,
 	testRuns: []
 };
-var tempDir =  __dirname + "/temp";
-
-function testPath(size) {
-	return tempDir + "/msg" + size + ".json";
-}
 
 var testClient = new IPCClient(config.server.IPCServer.socket_path, null);
 testClient.connect(function() {
 	async.eachSeries(config.tests, function(size, eachCallback){
-		var msg = require(testPath(size));
+		var msg = createSizedMessage(size);
 		var start = Date.now();
 
 		async.times(config.iterations, function(n, done){
@@ -24,7 +20,6 @@ testClient.connect(function() {
 		}, function(err) {
 			results.testRuns.push({
 				size: size,
-				file: testPath(size),
 				msg_duration: (Date.now()-start)/config.iterations
 			});
 			eachCallback();

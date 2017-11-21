@@ -72,5 +72,16 @@ class Test {
 		$testSuite = array('passed' => $passedCount, 'failed' => $failedCount, 'tests' => $results);
 		print(json_encode($testSuite));		
 	}
+	
+	public static function createSizedMessage($size) {
+		$message = array();
+		for ($i=0;$i<$size;$i++) {
+			$message["key_" . $i] = str_pad("GiveMe",  1024, "Dataz");
+		}
+		return $message;
+	}
 }
+
+
+
 ?>
