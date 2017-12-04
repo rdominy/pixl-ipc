@@ -120,12 +120,12 @@ options|json object|Override settings such as request timeout
 	requestTimeout : 10*1000, // How long to wait before timing out the request
 	expirationFrequency : 5*1000, // How frequently to check outstanding messages to see if they are stale
 	autoReconnect: 1000, // Reconnect in N ms if the connection is broken or set to 0 to prevent automatic reconnect
-	codeToErr: false // When a result message contains a non-falsey (zero) "code" element use that as the error in callback
+	codeToErr: false // When a result message contains a non-falsey (zero) "code" element use the message as the error in callback
 }
 
 ~~~~
 
-Creates the client object and overrides default options if provide.  
+Creates the client object and overrides default options if provided.  
 
 
 ### connect(callback)
