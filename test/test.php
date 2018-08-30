@@ -99,6 +99,33 @@ $test->newTest("send a message with default userAgent", function() use ($test) {
 	$test->assertEqual($result['hello'], 'thanks');
 });
 
+$test->newTest("test unexpected socket close", function() use ($test) {
+	$ipc = new PixlIPCClient(SOCKET_PATH);
+	$test->assert($ipc, 'No object returned from PixlIPCClient');
+	$ipc->connect();
+	$msg = array('delay' => 100);
+	$result = $ipc->send('/test/close', $msg); // This should cause the server to close all it's connections
+	$test->assert($result, 'No message back from server');
+	$test->assertEqual($result['hello'], 'thanks');
+	sleep(1);
+	$msg = array('foo' => 19, 'bar' => true, 'msg' => 'hello');
+	try {
+		$result = $ipc->send('/ipcserver/test/echo', $msg);
+		$test->assert(false, 'Expected exception');
+	}
+	catch (Exception $e) {
+		$test->assertEqual($e->getCode(), PixlIPCClient::E_SERVER_CLOSE);
+		$test->assertEqual($e->getMessage(), 'Server closed the connection (readMessage)');
+	}
+	
+	// Should recover by the next message
+	$result = $ipc->send('/ipcserver/test/echo', $msg);
+	$test->assert($result, 'No message back from server');
+	$test->assertEqual($result['foo'], $msg['foo']);
+	$test->assertEqual($result['bar'], $msg['bar']);
+	$test->assertEqual($result['msg'], $msg['msg']);	
+});
+
 $test->run();
 
 ?>

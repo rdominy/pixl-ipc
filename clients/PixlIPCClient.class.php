@@ -17,7 +17,8 @@ class PixlIPCClient {
 	const E_SOCKET_WRITE = 5003;
 	const E_BAD_RESPONSE = 5004;
 	const E_SERVER_CLOSE = 5005;
-	
+	const E_TIMEOUT = 5006;
+		
 	protected $socketPath = "";
 	protected $fp = null;
 	protected $connectTimeout_s = 0.5; // 500ms
@@ -30,6 +31,7 @@ class PixlIPCClient {
 	public function __construct($socketPath, $options=null) {
 		$this->socketPath = $socketPath;
 		$this->pid = getmypid();
+		$this->fp = null;
 		
 		// Pass incoming times in milliseconds for consistency
 		if ($options && isset($options['connectTimeout'])) {
@@ -76,7 +78,7 @@ class PixlIPCClient {
 				// Socket was closed on the other side, go ahead and close here too
 				@stream_socket_shutdown($this->fp , STREAM_SHUT_RDWR);
 				$this->fp = null;
-				throw new Exception('Server closed the connection', self::E_SERVER_CLOSE);
+				throw new Exception('Server closed the connection (readMessage)', self::E_SERVER_CLOSE);
 			}
 		}
 		return $response;		
@@ -90,6 +92,11 @@ class PixlIPCClient {
 	}
 	
 	public function send($uri, &$request) {
+		// Check to make sure we have a connection, if not attempt to reconnect
+		if ($this->fp==null) {
+			$this->connect();
+		}
+		
 		$requestStr = '';
 		$ipcReqID = $this->nextID();
 
@@ -110,7 +117,20 @@ class PixlIPCClient {
 		
 		$write_res = @fwrite($this->fp, $requestStr);
 		if ($write_res != strlen($requestStr)) {
-			throw new Exception("Socket write error, did not write expected number of bytes $write_res vs. " . strlen($requestStr), self::E_SOCKET_WRITE);
+			$metaData = stream_get_meta_data($this->fp);
+			if ($metaData['timed_out']) {
+				throw new Exception('Write timed out', self::E_TIMEOUT);
+			}
+			else if ($metaData['eof']) {
+				// Socket was closed on the other side, go ahead and close here too
+				@stream_socket_shutdown($this->fp , STREAM_SHUT_RDWR);
+				$this->fp = null;
+				throw new Exception('Server closed the connection (send)', self::E_SERVER_CLOSE);
+			}
+			else {
+				throw new Exception("Socket write error, did not write expected number of bytes $write_res vs. " . strlen($requestStr), self::E_SOCKET_WRITE);
+			}			
+			
 		}
 		
 		// For speed of not having to copy strings just to append a return, send the return separately

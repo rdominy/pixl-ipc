@@ -274,10 +274,13 @@ describe('PixlIPC', function() {
 			if (child) {
 				child.kill();
 			}
-			server.shutdown(function() {
-				cleanup();
-				done();
-			});
+			if (server) {
+				server.shutdown(function() {
+					cleanup();
+					done();
+				});				
+			}
+
 		})
 		it('server registers a handler to check request params', function(done) {
 			server.IPCServer.addURIHandler(/^\/myapi\/test/, "IPCServer", function(request, callback) {
@@ -289,6 +292,16 @@ describe('PixlIPC', function() {
 				var userAgentRegex = new RegExp(request.data.uaTest);
 				assert(userAgentRegex.test(request.userAgent), "unexpected userAgent:" + request.userAgent);
 				callback({"hello":"thanks"});
+			});
+			done();
+		})
+		it('registers a close handler', function(done) {
+			server.IPCServer.addURIHandler(/^\/test\/close/, "IPCServer", function(request, callback) {
+				assert(request);
+				assert(request.data);
+				assert(request.data.delay);
+				callback({"hello":"thanks"});
+				setTimeout(server.IPCServer.closeConnections.bind(server.IPCServer),request.data.delay);
 			});
 			done();
 		})
@@ -322,6 +335,50 @@ describe('PixlIPC', function() {
 				assert(gFinished, `child process exited with code ${code}`);
 				child = null;
 			});
+		})
+		it('php recovers from a server stop/start', function(done) {
+			this.timeout(10000);
+			child = child_process.spawn(
+				'php', [__dirname +'/test_recover.php'],
+				{ stdio: ['pipe', 'pipe', 'pipe'] }
+				);
+
+			assert(child);
+
+			child.stdout.on('data', function (data) {
+				gFinished = true;
+				assert(data, 'Empty response from PHP child');
+				data = '' + data; // force to string
+				assert(data.length>0, data);
+				data = data.trim();
+				// Expect JSON results
+				assert.equal(data.indexOf("{"), 0, data);
+				var results = JSON.parse(data);
+				assert(results && (results.failed==0), data);
+				done();
+			});
+
+			child.stderr.on('data', function (data) {
+				console.log(`stderr: ${data}`);
+			});
+
+			child.on('close', function (code) {
+				assert(gFinished, `child process exited with code ${code}`);
+				child = null;
+			});
+			
+			setTimeout(function() {
+				server.shutdown(function() {
+					server = null;
+					setTimeout(function() {
+						createServer(config, function(err, serverObj) {
+							assert(!err);
+							assert(serverObj);
+							server = serverObj;
+						});
+					}, 500);
+				});
+			}, 500);
 		})
 	})
 })
