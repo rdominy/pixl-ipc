@@ -1,6 +1,6 @@
 {
   "name": "pixl-ipc",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "IPC Server using Unix Domain Sockets and the pixl-server framework",
   "author": "Robert Dominy <rdominy+github@gmail.com>",
   "homepage": "https://github.com/rdominy/pixl-ipc",

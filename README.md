@@ -120,12 +120,28 @@ options|json object|Override settings such as request timeout
 	requestTimeout : 10*1000, // How long to wait before timing out the request
 	expirationFrequency : 5*1000, // How frequently to check outstanding messages to see if they are stale
 	autoReconnect: 1000, // Reconnect in N ms if the connection is broken or set to 0 to prevent automatic reconnect
-	codeToErr: false // When a result message contains a non-falsey (zero) "code" element use the message as the error in callback
+	codeToErr: false, // When a result message contains a non-falsey (zero) "code" element use the message as the error in callback
+	messageTransform: null // Provide a function to transform the error or data result before sending to the callback (details below)
 }
 
 ~~~~
 
 Creates the client object and overrides default options if provided.  
+
+For *messageTransform* you can provide a function that alters the error or data before it is sent to the messages callback handler.  It will override the *codeToErr* option if provided.  The function is passed the full message object and should return an array of \[err, data\]. Here's an example implementation (the code used to implement *codeToErr*):
+
+~~~~javascript
+function codeToErr(msg) {
+	var err = null;
+	if (msg.code) {
+		err = msg;
+	}
+	else if (msg.data && msg.data.code) {
+		err = msg.data;
+	}	
+	return [err, msg.data];
+}
+~~~~
 
 
 ### connect(callback)

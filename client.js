@@ -30,8 +30,20 @@ class IPCClient extends EventEmitter {
 		this.serialCounter = 0;
 		this.expirationFrequency = options.expirationFrequency ? options.expirationFrequency : 5*1000;
 		this.autoReconnect = (typeof options.autoReconnect == 'undefined') ? 1000 : options.autoReconnect;
-		this.codeToErr = (typeof options.codeToErr == 'undefined') ? false : options.codeToErr;
+		var defaultTransform = (options.codeToErr) ? this.codeToErr.bind(this) : null;
+		this.messageTransform = (options.messageTransform) ? options.messageTransform : defaultTransform;
 		this.requestCount = 0;
+	}
+	
+	codeToErr(msg) {
+		var err = null;
+		if (msg.code) {
+			err = msg;
+		}
+		else if (msg.data && msg.data.code) {
+			err = msg.data;
+		}	
+		return [err, msg.data];
 	}
 
 	expireRequests() {
@@ -64,18 +76,14 @@ class IPCClient extends EventEmitter {
 		if (msg && msg.ipcReqID) {
 			var request = this.requests[msg.ipcReqID];
 			var err = null;
-			if (this.codeToErr) {
-				if (msg.code) {
-					err = msg;
-				}
-				else if (msg.data && msg.data.code) {
-					err = msg.data;
-				}
+			var data = msg.data;
+			if (this.messageTransform) {
+				[err, data] = this.messageTransform(msg);
 			}
 			if (request) {
 				this.deleteRequest(msg.ipcReqID);
 				if (request.callback) {
-					request.callback(err, msg.data);
+					request.callback(err, data);
 				}
 			}
 			else {

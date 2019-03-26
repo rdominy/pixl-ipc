@@ -251,6 +251,52 @@ describe('PixlIPC', function() {
 					done();
 				});				
 			})
+			describe('node client using messageTransform', function() {
+				var testClientOpt = null;
+				before('client connects', function(done) {
+					clientStubby.reset();
+					var options = {
+						messageTransform: function(msg) {
+							var data = null;
+							var err = null;
+							if (msg.data.message == "err") {
+								err = {code:1, message:"transform error"};
+							}
+							else {
+								data = {message: msg.data.message + msg.data.message}
+							}
+							return [err, data];
+						}
+					}
+					testClientOpt = new IPCClient(SOCKET_PATH, clientStubby, options);
+					testClientOpt.connect(function(err) {
+						assert(!err);
+						assert.equal(clientStubby.errorCount, 0);
+						done();
+					});
+				})
+				it('sends an echo message to server', function(done) {
+					testClientOpt.send('/ipcserver/test/echo', {message:"foo",echo:true,bar:9}, function(err, result) {
+						assert(!err);
+						assert.equal(clientStubby.errorCount, 0);
+						assert(result);
+						assert(result.message);
+						assert.equal(result.message, "foofoo");
+						assert.equal(typeof result.echo, "undefined");
+						assert.equal(typeof result.bar, "undefined");
+						done();
+					});				
+				})
+				it('transforms echo message to error', function(done) {
+					testClientOpt.send('/ipcserver/test/echo', {message:"err",echo:true,bar:9}, function(err, result) {
+						assert(err);
+						assert.equal(err.code, 1);
+						assert.equal(err.message, "transform error");
+						assert(!result);
+						done();
+					});				
+				})
+			})
 		})
 	})
 	
