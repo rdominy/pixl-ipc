@@ -118,7 +118,6 @@ options|json object|Override settings such as request timeout
 {
 	userAgent: "Node/IPCClient" + process.cwd(), // A string that identifies your application
 	requestTimeout : 10*1000, // How long to wait before timing out the request
-	expirationFrequency : 5*1000, // How frequently to check outstanding messages to see if they are stale
 	autoReconnect: 1000, // Reconnect in N ms if the connection is broken or set to 0 to prevent automatic reconnect
 	codeToErr: false, // When a result message contains a non-falsey (zero) "code" element use the message as the error in callback
 	messageTransform: null // Provide a function to transform the error or data result before sending to the callback (details below)

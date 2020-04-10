@@ -8,7 +8,7 @@
 	requests: {
 		"rq3244": {
 			callback: function,
-			timestamp: 19134242535	
+			timer: setTimeout() result
 		}
 	}
 ************************************************/
@@ -22,13 +22,11 @@ class IPCClient extends EventEmitter {
 		super();
 		this.path = path;
 		this.stream = null;
-		this.timer = null;
 		this.requests = {};
 		this.logger = logger;
 		this.requestTimeout = options.requestTimeout ? options.requestTimeout : 10*1000 ;
 		this.userAgent = options.userAgent ? options.userAgent : "Node/IPCClient" + process.cwd();
 		this.serialCounter = 0;
-		this.expirationFrequency = options.expirationFrequency ? options.expirationFrequency : 5*1000;
 		this.autoReconnect = (typeof options.autoReconnect == 'undefined') ? 1000 : options.autoReconnect;
 		var defaultTransform = (options.codeToErr) ? this.codeToErr.bind(this) : null;
 		this.messageTransform = (options.messageTransform) ? options.messageTransform : defaultTransform;
@@ -102,6 +100,8 @@ class IPCClient extends EventEmitter {
 	}
 
 	deleteRequest(id) {
+		if (this.requests[id].timer)
+			clearTimeout(this.requests[id].timer);
 		delete this.requests[id];
 		this.requestCount--;
 	}
@@ -137,8 +137,6 @@ class IPCClient extends EventEmitter {
 				self.logError('stream_err',"Got error from stream: ", err);
 			} );
 			
-			self.timer = setInterval(self.expireRequests.bind(self), self.expirationFrequency);
-
 			callbackHandled = true;
 			callback();
 		});
@@ -161,10 +159,8 @@ class IPCClient extends EventEmitter {
 
 		client.on('end', function() {
 			self.logDebug(8,'server disconnected');
-			if (self.timer) {
-				clearInterval(self.timer);
-				self.timer = null;
-			}
+			for (let id in self.requests)
+				self.deleteRequest(id);
 		});
 
 	}
@@ -182,7 +178,7 @@ class IPCClient extends EventEmitter {
 
 			this.requests[msg.ipcReqID] = {
 				callback: callback,
-				timestamp: Date.now()
+				timer: setTimeout(this.handleTimeout.bind(this), this.requestTimeout, msg.ipcReqID)
 			};
 			this.requestCount++;
 			this.stream.write(msg);
@@ -190,6 +186,15 @@ class IPCClient extends EventEmitter {
 		else {
 			this.logError('no_open_stream', 'No valid stream is open');
 			callback('no_open_stream');
+		}
+	}
+
+	handleTimeout(id){
+		var request = this.requests[id];
+		if (request){
+			this.logError('request_timeout', "IPCClient request expired", request);
+			request.callback('request_timeout');
+			this.deleteRequest(id);
 		}
 	}
 
