@@ -2,7 +2,6 @@ const assert = require("assert"),
 	fs = require("fs"),
 	child_process = require('child_process'),
 	IPCClient = require('../client'),
-	async = require('async'),
 	Stubby = require('./lib/stubby.js'),
 	createSizedMessage = require('./lib/sized-message.js'),
 	PixlServer = require('pixl-server');
@@ -166,14 +165,20 @@ describe('PixlIPC', function() {
 		})
 		it('generate a message that times out', function(done) {
 			clientStubby.reset();
-			var shortClient = new IPCClient(SOCKET_PATH, clientStubby, {requestTimeout: 100, expirationFrequency: 100});
+			var shortClient = new IPCClient(SOCKET_PATH, clientStubby, {requestTimeout: 100, expireRequest: 1000});
 			shortClient.connect(function(err) {
 				assert(!err);
 				assert.equal(clientStubby.errorCount, 0);
-				shortClient.send('/ipcserver/test/delay',  {delay:1000}, function(err, result) {
+				shortClient.send('/ipcserver/test/delay',  {delay:500}, function(err, _result) {
 					assert.equal(err, 'request_timeout');
-					assert.equal(clientStubby.errorCount, 1);
-					done();
+					// Allow time for the request to come back and make sure we don't report 2 errors
+					setTimeout(function() {
+						assert.equal(clientStubby.errorCount, 1);
+						assert(clientStubby.lastError.message.indexOf('/ipcserver/test/delay')>0);
+						assert.equal(shortClient.requestCount, 0);
+						done();					
+					}, 1000);
+
 				});				
 			});
 		})

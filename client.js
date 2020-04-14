@@ -25,6 +25,7 @@ class IPCClient extends EventEmitter {
 		this.requests = {};
 		this.logger = logger;
 		this.requestTimeout = options.requestTimeout ? options.requestTimeout : 10*1000 ;
+		this.expireRequest = options.expireRequest ? options.expireRequest : 10*1000 ;
 		this.userAgent = options.userAgent ? options.userAgent : "Node/IPCClient" + process.cwd();
 		this.serialCounter = 0;
 		this.autoReconnect = (typeof options.autoReconnect == 'undefined') ? 1000 : options.autoReconnect;
@@ -42,20 +43,6 @@ class IPCClient extends EventEmitter {
 			err = msg.data;
 		}	
 		return [err, msg.data];
-	}
-
-	expireRequests() {
-		if (this.requestCount>0) {
-			var now = Date.now();
-			for (var id in this.requests) {
-				if (this.requests[id].timestamp+this.requestTimeout < now) {
-					var request = this.requests[id];
-					this.logError('request_timeout', "IPCClient request expired", request);
-					request.callback('request_timeout');
-					this.deleteRequest(id);
-				}
-			}
-		}
 	}
 
 	logDebug(level, message, data='') {
@@ -79,10 +66,13 @@ class IPCClient extends EventEmitter {
 				[err, data] = this.messageTransform(msg);
 			}
 			if (request) {
-				this.deleteRequest(msg.ipcReqID);
-				if (request.callback) {
-					request.callback(err, data);
+				if (!request.expired) {
+					this.deleteRequest(msg.ipcReqID);
+					if (request.callback) {
+						request.callback(err, data);
+					}					
 				}
+				// Else ignored expired requests -- they have a timer to delete after expireRequest time
 			}
 			else {
 				this.logError('ipc_req_not_found', 'Could not find request ID' + msg.ipcReqID + ' in request list', msg);
@@ -178,7 +168,8 @@ class IPCClient extends EventEmitter {
 
 			this.requests[msg.ipcReqID] = {
 				callback: callback,
-				timer: setTimeout(this.handleTimeout.bind(this), this.requestTimeout, msg.ipcReqID)
+				expired: false,
+				timer: setTimeout(this.handleTimeout.bind(this, msg.ipcReqID, uri), this.requestTimeout)
 			};
 			this.requestCount++;
 			this.stream.write(msg);
@@ -189,12 +180,14 @@ class IPCClient extends EventEmitter {
 		}
 	}
 
-	handleTimeout(id){
+	handleTimeout(id, uri){
 		var request = this.requests[id];
 		if (request){
-			this.logError('request_timeout', "IPCClient request expired", request);
+			// Don't immediately delete in case the response comes back, we'll know to ignore it
+			request.expired = true;
+			request.timer = setTimeout(this.deleteRequest.bind(this, id), this.expireRequest);
+			this.logError('request_timeout', "IPCClient request expired: " + uri);
 			request.callback('request_timeout');
-			this.deleteRequest(id);
 		}
 	}
 
