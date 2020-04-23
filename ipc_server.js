@@ -16,7 +16,8 @@ class IPCServer extends Component {
 		this.defaultConfig = {
 			exit_timeout: 2000,
 			log_stats_interval: 'minute',
-			socket_chmod: '777'
+			socket_chmod: '777',
+			slow_threshold_ms: 20  // Threshold at which we count the response as slow in stats 
 		};
 		this.uriHandlers = [];
 		this.unixServer = null;
@@ -35,7 +36,8 @@ class IPCServer extends Component {
 			clientOpen: 0,
 			clientClose: 0,
 			maxConnections: 0,
-			duration: 0
+			duration: 0,
+			slowResponses: 0
 		};
 	}
 	
@@ -120,6 +122,9 @@ class IPCServer extends Component {
 			stream.write({ipcReqID: ipcReqID, code: 'no_uri', message:'Missing required uri parameter from request'});
 		}
 		else {
+			let startTime = Date.now();
+			let self = this;
+			
 			var handler = this.uriHandlers.find(function(item) {
 				return item.regexp.test(request.uri);
 			});
@@ -136,6 +141,11 @@ class IPCServer extends Component {
 				};
 				
 				stream.write(response);
+				
+				let elapsed =  Date.now() - startTime;
+				if (elapsed > self.config.get('slow_threshold_ms')) {
+					self.intervalStats.slowResponses++;
+				}
 			});
 		}
 

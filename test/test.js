@@ -216,6 +216,7 @@ describe('PixlIPC', function() {
 			assert.equal(stats.clientOpen, 3);
 			assert.equal(stats.clientClose, 0);
 			assert(stats.requests > 5);
+			assert(stats.slowResponses > 0);
 		})
 		describe('Client with codeToErr option set', function() {
 			var client = null;
