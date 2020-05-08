@@ -1,4 +1,4 @@
-const fs = require('fs'),
+const 
 	child_process = require('child_process'),
 	PixlServer = require('pixl-server');
 
@@ -8,7 +8,6 @@ var config = require(__dirname + "/bench_config.json");
 function launchChildTest(cmd, args, callback) {
 	var child = child_process.spawn(cmd, args, {stdio: ['pipe', 'pipe', 'pipe']});
 
-	var gotCompletion = false;
 	var results = null;
 	child.stdout.on('data', function (data) {
 		results = data;

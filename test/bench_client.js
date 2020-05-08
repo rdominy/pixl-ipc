@@ -17,7 +17,7 @@ testClient.connect(function() {
 
 		async.times(config.iterations, function(n, done){
 			testClient.send('/ipcserver/test/echo', msg, done);
-		}, function(err) {
+		}, function() {
 			results.testRuns.push({
 				size: size,
 				msg_duration: (Date.now()-start)/config.iterations
