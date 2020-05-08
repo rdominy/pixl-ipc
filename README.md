@@ -120,7 +120,8 @@ options|json object|Override settings such as request timeout
 	requestTimeout : 10*1000, // How long to wait before timing out the request
 	autoReconnect: 1000, // Reconnect in N ms if the connection is broken or set to 0 to prevent automatic reconnect
 	codeToErr: false, // When a result message contains a non-falsey (zero) "code" element use the message as the error in callback
-	messageTransform: null // Provide a function to transform the error or data result before sending to the callback (details below)
+	messageTransform: null, // Provide a function to transform the error or data result before sending to the callback (details below)
+	logStatsInterval: null // Logs perf metrics of the JSON stream every logStatsInterval milliseconds
 }
 
 ~~~~
@@ -158,6 +159,13 @@ message|json object|The data to send to the IPC server
 callback|function|When the server sends a response, this callback will be invoked with (err, data)
 
 Sends an asynchronous JSON request to the IPC Server and gets the response back in the callback.
+
+### close(callback)
+Name|Type|Description
+----|----|-----------
+callback|function|Called once the connection is closed (optional)
+
+Closes the socket connection and clears any timers.
 
 # PHP Client
 PixlIPCClient provides an API for sending socket messages to the IPC server.  Unlike the Node client, it is a blocking, synchronous model.

@@ -1,6 +1,6 @@
 {
   "name": "pixl-ipc",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "description": "IPC Server using Unix Domain Sockets and the pixl-server framework",
   "author": "Robert Dominy <rdominy+github@gmail.com>",
   "homepage": "https://github.com/rdominy/pixl-ipc",
@@ -29,8 +29,8 @@
     "async": "^2.6.1",
     "pixl-args": "^1.0.3",
     "pixl-json-stream": "^1.0.6",
-    "pixl-logger": "^1.0.14",
-    "pixl-perf": "^1.0.5",
-    "pixl-server": "^1.0.15"
+    "pixl-logger": "^1.0.19",
+    "pixl-perf": "^1.0.7",
+    "pixl-server": "^1.0.26"
   }
 }

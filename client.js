@@ -15,6 +15,7 @@
 
 var net = require('net'),
 	EventEmitter = require('events'),
+	PixlPerf = require('pixl-perf'),
 	JSONStream = require('pixl-json-stream');
 
 class IPCClient extends EventEmitter {
@@ -32,6 +33,12 @@ class IPCClient extends EventEmitter {
 		var defaultTransform = (options.codeToErr) ? this.codeToErr.bind(this) : null;
 		this.messageTransform = (options.messageTransform) ? options.messageTransform : defaultTransform;
 		this.requestCount = 0;
+		
+		if (options.logStatsInterval) {
+			this.logStatsInterval = setInterval(this.logStats.bind(this), options.logStatsInterval);
+			this.perf = new PixlPerf();
+			this.perf.begin();
+		}
 	}
 	
 	codeToErr(msg) {
@@ -54,6 +61,15 @@ class IPCClient extends EventEmitter {
 	logError(code, message, data) {
 		if (this.logger) {
 			this.logger.error(code, message, data);
+		}
+	}
+	
+	logStats() {
+		if (this.perf) {
+			this.perf.end();
+			this.logDebug(2, "PixlIPC Stats", this.perf.summarize());
+			this.perf.reset();
+			this.perf.begin();
 		}
 	}
 
@@ -127,9 +143,14 @@ class IPCClient extends EventEmitter {
 				self.logError('stream_err',"Got error from stream: ", err);
 			} );
 			
+			if (self.perf) {
+				self.stream.setPerf(self.perf);
+			}	
+			
 			callbackHandled = true;
 			callback();
 		});
+		this.socket = client;
 		
 		client.on('error', function(err) {
 			self.logError('ipc_socket_err','Unexpected socket error', err);
@@ -188,6 +209,21 @@ class IPCClient extends EventEmitter {
 			request.timer = setTimeout(this.deleteRequest.bind(this, id), this.expireRequest);
 			this.logError('request_timeout', "IPCClient request expired: " + uri);
 			request.callback('request_timeout');
+		}
+	}
+	
+	close(callback) {
+		if (this.logStatsInterval) {
+			clearInterval(this.logStatsInterval);
+			this.logStatsInterval = null;
+		}
+		if (this.socket) {
+			this.socket.end();
+			this.socket.unref();
+			this.socket = null;
+		}
+		if (callback) {
+			callback();
 		}
 	}
 

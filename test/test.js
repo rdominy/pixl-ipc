@@ -20,7 +20,10 @@ var config = {
 };
 
 function cleanup() {
-	try { fs.unlinkSync(config.log_dir + config.log_filename) } catch(e) {}
+	try { fs.unlinkSync(config.log_dir + config.log_filename) } 
+	catch(e) {
+		// Ignore
+	}
 }
 
 function createServer(config, callback) {
@@ -57,7 +60,7 @@ describe('PixlIPC', function() {
 			client.connect(function(err) {
 				assert(err);
 				assert.equal(clientStubby.errorCount, 1);
-				client.send('/myapi/test', {message:"foo"}, function(err, result) {
+				client.send('/myapi/test', {message:"foo"}, function(err, _result) {
 					assert(err);
 					assert.equal(clientStubby.errorCount, 2);
 					done();
@@ -67,7 +70,7 @@ describe('PixlIPC', function() {
 		it('responds with error when no connection present', function(done) {
 			clientStubby.reset();
 			var client = new IPCClient(SOCKET_PATH, clientStubby);
-			client.send('/myapi/test', {message:"foo"}, function(err, result) {
+			client.send('/myapi/test', {message:"foo"}, function(err, _result) {
 				assert(err);
 				assert.equal(clientStubby.errorCount, 1);
 				done();
@@ -95,7 +98,11 @@ describe('PixlIPC', function() {
 		after('shutdown server', function(done) {
 			server.shutdown(function() {
 				cleanup();
-				done();
+				if (testClient) {
+					testClient.close(done);
+				}
+				else
+					done();
 			});
 		})
 		it('registers a handler', function(done) {
@@ -115,7 +122,7 @@ describe('PixlIPC', function() {
 			done();
 		})
 		it('client connects', function(done) {
-			testClient = new IPCClient(SOCKET_PATH, clientStubby);
+			testClient = new IPCClient(SOCKET_PATH, clientStubby, {logStatsInterval: 100});
 			testClient.connect(function(err) {
 				assert(!err);
 				assert.equal(clientStubby.errorCount, 0);
@@ -195,6 +202,7 @@ describe('PixlIPC', function() {
 			clientStubby.reset();
 			var uaClient = new IPCClient(SOCKET_PATH, clientStubby, {userAgent:"shortClient"});
 			uaClient.connect(function(err) {
+				assert.ifError(err);
 				uaClient.send('/myapi/test', {message:"foo", uaTest:"^shortClient$"}, function(err, result) {
 					assert(!err);
 					assert.equal(clientStubby.errorCount, 0);
@@ -217,6 +225,10 @@ describe('PixlIPC', function() {
 			assert.equal(stats.clientClose, 0);
 			assert(stats.requests > 5);
 			assert(stats.slowResponses > 0);
+		})
+		it('cycle client stats and check log', function() {
+			testClient.logStats();
+			assert(clientStubby.debugLog.indexOf("PixlIPC Stats")>0);
 		})
 		describe('Client with codeToErr option set', function() {
 			var client = null;
@@ -242,7 +254,7 @@ describe('PixlIPC', function() {
 				});				
 			})
 			it('sends an unknown message to server', function(done) {
-				client.send('/ipcserver/no_such_thing',  {foo:10}, function(err, result) {
+				client.send('/ipcserver/no_such_thing',  {foo:10}, function(err, _result) {
 					assert(err);
 					assert.equal(err.code, 'no_handler_found');
 					assert(err.message);
@@ -250,7 +262,7 @@ describe('PixlIPC', function() {
 				});
 			})
 			it('sends an echo message with non-zero result code', function(done) {
-				client.send('/ipcserver/test/echo', {code: "testErr", message:"foo",echo:true,bar:9}, function(err, result) {
+				client.send('/ipcserver/test/echo', {code: "testErr", message:"foo",echo:true,bar:9}, function(err, _result) {
 					assert(err);
 					assert.equal(err.code, "testErr");
 					assert.equal(err.message, "foo");
