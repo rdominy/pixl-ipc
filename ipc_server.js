@@ -7,6 +7,7 @@ const net = require('net'),
 	fs = require('fs'),
 	async = require('async'),
 	Component = require("pixl-server/component"),
+	PixlPerf = require('pixl-perf'),
 	JSONStream = require('pixl-json-stream');
 
 class IPCServer extends Component {
@@ -22,7 +23,8 @@ class IPCServer extends Component {
 		this.uriHandlers = [];
 		this.unixServer = null;
 		this.connections = new Set();
-
+		this.streamPerf = new PixlPerf();
+		this.streamPerf.begin();
  		this.intervalStats = this.newIntervalStats();
 		this.lastCycleStats = this.newIntervalStats();  // Keep a full cycle of stats that can be fetched
 		this.statsIntervalStart = Date.now();
@@ -37,18 +39,27 @@ class IPCServer extends Component {
 			clientClose: 0,
 			maxConnections: 0,
 			duration: 0,
-			slowResponses: 0
+			slowResponses: 0,
+			streamBackpressure: 0
 		};
 	}
 	
 	cycleIntervalStats(duration) {
+		this.streamPerf.end();
+		let stats = this.streamPerf.metrics();
+		this.intervalStats.streamBackpressure =  (stats.counters.json_stream_write_buffer) ? stats.counters.json_stream_write_buffer:0;
+		
 		this.lastCycleStats = Object.assign({}, this.intervalStats);
 		this.lastCycleStats.duration = duration;
 		this.intervalStats = this.newIntervalStats();
+		this.streamPerf.reset();
+		this.streamPerf.begin();
 	}
 
 	cleanup() {
-		try { fs.unlinkSync(this.config.get("socket_path")); } catch(e) {}
+		try { fs.unlinkSync(this.config.get("socket_path")); } catch(e) {
+			// ignore
+		}
 	}
 
 	closeConnections() {
@@ -93,6 +104,8 @@ class IPCServer extends Component {
 			stream.on('error', function(err) {
 				self.logError('stream_err',"Got error from stream: ", err);
 			} );
+			
+			stream.setPerf(self.streamPerf);
 		});
 
 		this.unixServer.on('error', function(err) {
