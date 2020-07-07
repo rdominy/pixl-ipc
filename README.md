@@ -3,6 +3,7 @@ The pixl-ipc module provides interprocess communication (IPC) using unix domain 
 * JSON messages over UNIX domain sockets
 * Protocol is language agnostic
 * PHP and Node.js client classes provided
+* Node.js client now supports async/await
 
 # Usage
 
@@ -40,6 +41,8 @@ server.startup( function() {
 
 
 # Making Request from a Client
+The Node.js client supports callback style requests as well as async/await-style Promises.  If a callback is omitted, the methods connect/send/close will return a promise.
+
 ~~~~javascript
 const IPCClient = require('pixl-ipc/client');
 
@@ -53,6 +56,22 @@ testClient.connect(function() {
 		console.log(err, data);
 	});
 });
+
+// Or using async/await
+async function run() {
+	let asyncClient = new IPCClient("/var/tmp/my_ipc_server.sock");
+	try {
+			await asyncClient.connect();
+			let result =  await asyncClient.send('/myapi/test', {"welcome":42});
+			console.log(result);
+			await.asyncClient.close();
+	}
+	catch (e) {
+		console.log("Exception: " + e);
+	}
+}
+
+run();
 ~~~~
 
 # Server

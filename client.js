@@ -39,6 +39,11 @@ class IPCClient extends EventEmitter {
 			this.perf = new PixlPerf();
 			this.perf.begin();
 		}
+		
+		// Make our public methods async/await compatible
+		this.connect = this.awaitify(this.connect);
+		this.send = this.awaitify(this.send);
+		this.close = this.awaitify(this.close);
 	}
 	
 	codeToErr(msg) {
@@ -118,6 +123,25 @@ class IPCClient extends EventEmitter {
 			setTimeout(this.connect.bind(this, this.reconnect.bind(this)), this.autoReconnect);
 		}
 	}
+	
+	// Copied from the excellent async package
+	awaitify(asyncFn, arity = asyncFn.length) {
+	    if (!arity) throw new Error('arity is undefined');
+	    function awaitable(...args) {
+	        if (typeof args[arity - 1] === 'function') {
+	            return asyncFn.apply(this, args);
+	        }
+	        return new Promise((resolve, reject) => {
+	            args[arity - 1] = (err, ...cbArgs) => {
+	                if (err) return reject(err);
+	                resolve(cbArgs.length > 1 ? cbArgs : cbArgs[0]);
+	            };
+	            asyncFn.apply(this, args);
+	        });
+	    }
+
+	    return awaitable;
+	}
 
 	//
 	// Public Methods
@@ -177,7 +201,7 @@ class IPCClient extends EventEmitter {
 	}
 
 
-	send(uri, data, callback=null) {
+	send(uri, data, callback) {
 		if (this.stream) {
 			var msg = {
 				ipcReqID: this.nextID(),

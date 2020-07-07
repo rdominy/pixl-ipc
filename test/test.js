@@ -230,6 +230,25 @@ describe('PixlIPC', function() {
 			testClient.logStats();
 			assert(clientStubby.debugLog.indexOf("PixlIPC Stats")>0);
 		})
+		it('works with async/await', async function() {
+			let asyncClient = new IPCClient(SOCKET_PATH, clientStubby, {logStatsInterval: 100, codeToErr: true});
+			await asyncClient.connect();
+			let result = await asyncClient.send('/ipcserver/test/echo', {message:"foo",echo:true,bar:9});
+			assert.equal(clientStubby.errorCount, 0);
+			assert(result);
+			assert(result.message);
+			assert.equal(result.message, "foo");
+			assert.equal(result.echo, true);
+			assert.equal(result.bar, 9);
+			try {
+				await asyncClient.send('/ipcserver/no_such_thing',  {foo:10});
+				assert(false, 'Expected exception');
+			}
+			catch (e) {
+				// Expected
+			}
+			await asyncClient.close();
+		})
 		describe('Client with codeToErr option set', function() {
 			var client = null;
 			before('client connects', function(done) {
