@@ -1,3 +1,5 @@
+"use strict";
+
 const assert = require("assert"),
 	fs = require("fs"),
 	child_process = require('child_process'),
@@ -26,6 +28,32 @@ function cleanup() {
 	}
 }
 
+class ClientSubclass extends IPCClient {
+	constructor(path, logger, options) {
+		super(path, logger, options);
+		this.sendCount = 0;
+	}
+	
+	
+	send(uri, data, callback) {
+		this.sendCount++;
+		super.send(uri, data, callback);
+	}
+}
+
+class ClientSubclassAsync extends IPCClient {
+	constructor(path, logger, options) {
+		super(path, logger, options);
+		this.sendCount = 0;
+	}
+	
+	
+	send(uri, data) {
+		this.sendCount++;
+		return super.send(uri, data);
+	}
+}
+
 function createServer(config, callback) {
 	var server = new PixlServer({
 			__name: 'IPCTestServer',
@@ -47,6 +75,7 @@ function createServer(config, callback) {
 		});
 	});
 }
+
 
 
 
@@ -234,6 +263,45 @@ describe('PixlIPC', function() {
 			let asyncClient = new IPCClient(SOCKET_PATH, clientStubby, {logStatsInterval: 100, codeToErr: true});
 			await asyncClient.connect();
 			let result = await asyncClient.send('/ipcserver/test/echo', {message:"foo",echo:true,bar:9});
+			assert.equal(clientStubby.errorCount, 0);
+			assert(result);
+			assert(result.message);
+			assert.equal(result.message, "foo");
+			assert.equal(result.echo, true);
+			assert.equal(result.bar, 9);
+			try {
+				await asyncClient.send('/ipcserver/no_such_thing',  {foo:10});
+				assert(false, 'Expected exception');
+			}
+			catch (e) {
+				// Expected
+			}
+			await asyncClient.close();
+		})
+		
+		it('works with subclass', function(done) {
+			let subclient = new ClientSubclass(SOCKET_PATH, clientStubby, {logStatsInterval: 100, codeToErr: true});
+			subclient.connect(function(err) {
+				assert.ifError(err);
+				subclient.send('/ipcserver/test/echo', {message:"foo",echo:true,bar:9}, function(err, result) {
+					assert.ifError(err);
+					assert.equal(subclient.sendCount, 1);
+					assert.equal(clientStubby.errorCount, 0);
+					assert(result);
+					assert(result.message);
+					assert.equal(result.message, "foo");
+					assert.equal(result.echo, true);
+					assert.equal(result.bar, 9);
+					subclient.close(done);
+				});
+			});
+		})
+		
+		it('works with async subclass', async function() {
+			let asyncClient = new ClientSubclassAsync(SOCKET_PATH, clientStubby, {logStatsInterval: 100, codeToErr: true});
+			await asyncClient.connect();
+			let result = await asyncClient.send('/ipcserver/test/echo', {message:"foo",echo:true,bar:9});
+			assert.equal(asyncClient.sendCount, 1);
 			assert.equal(clientStubby.errorCount, 0);
 			assert(result);
 			assert(result.message);

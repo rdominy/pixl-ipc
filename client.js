@@ -39,11 +39,6 @@ class IPCClient extends EventEmitter {
 			this.perf = new PixlPerf();
 			this.perf.begin();
 		}
-		
-		// Make our public methods async/await compatible
-		this.connect = this.awaitify(this.connect);
-		this.send = this.awaitify(this.send);
-		this.close = this.awaitify(this.close);
 	}
 	
 	codeToErr(msg) {
@@ -123,25 +118,6 @@ class IPCClient extends EventEmitter {
 			setTimeout(this.connect.bind(this, this.reconnect.bind(this)), this.autoReconnect);
 		}
 	}
-	
-	// Copied from the excellent async package
-	awaitify(asyncFn, arity = asyncFn.length) {
-	    if (!arity) throw new Error('arity is undefined');
-	    function awaitable(...args) {
-	        if (typeof args[arity - 1] === 'function') {
-	            return asyncFn.apply(this, args);
-	        }
-	        return new Promise((resolve, reject) => {
-	            args[arity - 1] = (err, ...cbArgs) => {
-	                if (err) return reject(err);
-	                resolve(cbArgs.length > 1 ? cbArgs : cbArgs[0]);
-	            };
-	            asyncFn.apply(this, args);
-	        });
-	    }
-
-	    return awaitable;
-	}
 
 	//
 	// Public Methods
@@ -150,78 +126,101 @@ class IPCClient extends EventEmitter {
 	connect(callback) {
 		var self = this;
 		var callbackHandled = false;
-
-		var client = net.createConnection(this.path, function(arg) {
-			self.logDebug(8, "connection created", arg);
-
-			self.stream = new JSONStream( client );
-
-			self.stream.on('json', function(data) {
-				// received data from server
-				//self.logDebug(9,"Got data from server: ", data);
-
-				self.handleIPCRequest(data);
-			} );
-
-			self.stream.on('error', function(err) {
-				self.logError('stream_err',"Got error from stream: ", err);
-			} );
+		const work = function(resolve, reject) {
 			
-			if (self.perf) {
-				self.stream.setPerf(self.perf);
-			}	
-			
-			callbackHandled = true;
-			callback();
-		});
-		this.socket = client;
-		
-		client.on('error', function(err) {
-			self.logError('ipc_socket_err','Unexpected socket error', err);
-			
-			// This error handler will get invoked on the initial createConnection 
-			// for a bad socket path, so need to handle the callback
-			if (!callbackHandled) {
+			var client = net.createConnection(self.path, function(arg) {
+				self.logDebug(8, "connection created", arg);
+
+				self.stream = new JSONStream( client );
+
+				self.stream.on('json', function(data) {
+					// received data from server
+					//self.logDebug(9,"Got data from server: ", data);
+
+					self.handleIPCRequest(data);
+				} );
+
+				self.stream.on('error', function(err) {
+					self.logError('stream_err',"Got error from stream: ", err);
+				} );
+				
+				if (self.perf) {
+					self.stream.setPerf(self.perf);
+				}	
+				
 				callbackHandled = true;
-				callback('ipc_socket_err');
-			}
-			else {
-				// The error occurred sometime after the initial connection, attempt to reconnect
-				self.stream = null;
-				self.reconnect(err);
-			}
-		});
+				resolve();
+			});
+			self.socket = client;
+			
+			client.on('error', function(err) {
+				self.logError('ipc_socket_err','Unexpected socket error', err);
+				
+				// This error handler will get invoked on the initial createConnection 
+				// for a bad socket path, so need to handle the callback
+				if (!callbackHandled) {
+					callbackHandled = true;
+					reject('ipc_socket_err');
+				}
+				else {
+					// The error occurred sometime after the initial connection, attempt to reconnect
+					self.stream = null;
+					self.reconnect(err);
+				}
+			});
 
-		client.on('end', function() {
-			self.logDebug(8,'server disconnected');
-			for (let id in self.requests)
-				self.deleteRequest(id);
-		});
+			client.on('end', function() {
+				self.logDebug(8,'server disconnected');
+				for (let id in self.requests)
+					self.deleteRequest(id);
+			});
+		};
+		
+		if (!callback) {
+			return new Promise(work);
+		}
+		else {
+			work(function(result) {callback(null, result)}, callback);
+		}
 
 	}
 
-
 	send(uri, data, callback) {
-		if (this.stream) {
-			var msg = {
-				ipcReqID: this.nextID(),
-				uri: uri,
-				data: data,
-				pid: process.pid,
-				userAgent: this.userAgent
-			};
+		const self = this;
+		const work = function(resolve, reject) {
+			if (self.stream) {
+				var msg = {
+					ipcReqID: self.nextID(),
+					uri: uri,
+					data: data,
+					pid: process.pid,
+					userAgent: self.userAgent
+				};
 
-			this.requests[msg.ipcReqID] = {
-				callback: callback,
-				expired: false,
-				timer: setTimeout(this.handleTimeout.bind(this, msg.ipcReqID, uri), this.requestTimeout)
-			};
-			this.requestCount++;
-			this.stream.write(msg);
+				self.requests[msg.ipcReqID] = {
+					callback: function(err, result) {
+						if (err)
+							reject(err);
+						else 
+							resolve(result);
+					},
+					expired: false,
+					timer: setTimeout(self.handleTimeout.bind(self, msg.ipcReqID, uri), self.requestTimeout)
+				};
+				self.requestCount++;
+				self.stream.write(msg);
+			}
+			else {
+				self.logError('no_open_stream', 'No valid stream is open');
+				reject('no_open_stream');
+			}
+		};
+		
+		if (!callback) {
+			return new Promise(work);
 		}
 		else {
-			this.logError('no_open_stream', 'No valid stream is open');
-			callback('no_open_stream');
+			work(function(result) {callback(null, result)}, callback);
 		}
 	}
 
@@ -248,6 +247,9 @@ class IPCClient extends EventEmitter {
 		}
 		if (callback) {
 			callback();
+		}
+		else {
+			return new Promise(function(resolve) {resolve();});
 		}
 	}
 
