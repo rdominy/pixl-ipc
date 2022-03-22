@@ -200,7 +200,7 @@ class IPCClient extends EventEmitter {
 				self.requests[msg.ipcReqID] = {
 					callback: function(err, result) {
 						if (err)
-							reject(err);
+							reject(err, result);
 						else 
 							resolve(result);
 					},
